@@ -23,22 +23,60 @@
    and the Camel namespaces.
 -->
 <blueprint xmlns="http://www.osgi.org/xmlns/blueprint/v1.0.0"
-           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-           xmlns:jaxrs="http://cxf.apache.org/blueprint/jaxrs"
-           xmlns:cxf="http://cxf.apache.org/blueprint/core"
-           xsi:schemaLocation="
-             http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd
-             http://cxf.apache.org/blueprint/jaxrs http://cxf.apache.org/schemas/blueprint/jaxrs.xsd
-             http://cxf.apache.org/blueprint/core http://cxf.apache.org/schemas/blueprint/core.xsd
-             ">    <!--
+    xmlns:camel-cxf="http://camel.apache.org/schema/blueprint/cxf"
+    xmlns:cxf="http://cxf.apache.org/blueprint/core"
+    xmlns:jaxrs="http://cxf.apache.org/blueprint/jaxrs"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="              http://www.osgi.org/xmlns/blueprint/v1.0.0 http://www.osgi.org/xmlns/blueprint/v1.0.0/blueprint.xsd              http://cxf.apache.org/blueprint/jaxrs http://cxf.apache.org/schemas/blueprint/jaxrs.xsd              http://cxf.apache.org/blueprint/core http://cxf.apache.org/schemas/blueprint/core.xsd             http://camel.apache.org/schema/cxf http://camel.apache.org/schema/cxf/camel-cxf.xsd ">
+    <!--
       The namespace for the camelContext element in Blueprint is 'https://camel.apache.org/schema/blueprint'. Additionally,
       we can also define namespace prefixes we want to use them in the XPath expressions in our CBR.
 
       While it is not required to assign id's to the <camelContext/> and <route/> elements, it is a good idea
       to set those for runtime management purposes (logging, JMX MBeans, ...)
     -->
-    <bean class="com.vcc.netstage2.route.RouteDeclaration" id="webServiceRoute"></bean>
-    <camelContext id="_context1" xmlns="http://camel.apache.org/schema/blueprint">
-    	<routeBuilder ref="webServiceRoute"/>
+    <!-- <cxf:cxfEndpoint id="webServiceEndPoint" address="http://localhost:9292/cxf/demoImportDeclare" serviceClass="com.vcc.netstage2.webservice.POC_WebServiceInterface"/>
+     -->
+    <camel-cxf:cxfEndpoint
+        address="http://localhost:9292/cxf/demoImportDeclare"
+        id="webServiceEndPoint" serviceClass="com.vcc.netstage2.webservice.POC_WebServiceInterface"/>
+    <bean class="com.vcc.netstage2.commons.ImportDeclInBoundProcess" id="importDeclProcess"/>
+    <bean
+        class="com.vcc.netstage2.commons.ImportDeclTransformationProcess" id="importDeclTrsfmProcess"/>
+    <bean class="com.vcc.netstage2.commons.ImportDeclOutBondProcess" id="importDeclOutBondProcess"/>
+    <!-- Exitnote beans -->
+    <bean
+        class="com.vcc.netstage2.commons.ExitNote.ImportExitNoteInBoundProcess" id="importExitNoteProcess"/>
+    <bean
+        class="com.vcc.netstage2.commons.ExitNote.ImportExitNoteOutBondProcess" id="importExitNoteOutBoundProcess"/>
+    <bean class="com.vcc.netstage2.route.RouteDeclaration" id="webServiceRoute"/>
+    <camelContext id="Demo_vcc2_netstage2" xmlns="http://camel.apache.org/schema/blueprint">
+        <!-- <routeBuilder ref="webServiceRoute"/> -->
+        <route id="cxf">
+            <!-- route starts from the cxf webservice in POJO mode -->
+            <from id="webServiceEndPointListener" uri="cxf:bean:webServiceEndPoint"/>
+            <recipientList id="dispatchToCorrectRoute">
+                <simple>direct:${header.operationName}</simple>
+            </recipientList>
+        </route>
+        <route id="ImportDeclaration">
+            <!-- <log id="logStatusIncident" message="OrderDetails Call"/>
+            <process id="_process1" ref="orderProcessor"/> -->
+            <from id="sendDeclarationStarter" uri="direct:sendDeclaration"/>
+            <log id="logStatusIncident" message="Import declaration Call:${body}"/>
+            <process id="importDeclProcessId" ref="importDeclProcess"/>
+            <log id="AfterImportDeclInBondLogId" message="After DeclInBondProcess :${body}"/>
+            <process id="importDeclTrsfmProcessId" ref="importDeclTrsfmProcess"/>
+            <log id="AfterImportDeclTrsfmProcessId" message="After Data Trfm:${body}"/>
+            <process id="importDeclOutBondLogId" ref="importDeclOutBondProcess"/>
+            <log id="logStatusIncident" message="::: End of Import declaration Call"/>
+        </route>
+        <route id="ImportExitNote">
+            <from id="sendExitNoteStarter" uri="direct:sendExitNote"/>
+            <log id="ImportExitNOteSendCall" message="Import exitnote send Call:${body}"/>
+            <process id="importExitNoteProcessId" ref="importExitNoteProcess"/>
+            <log id="AfterInBondExitNoteId" message="After exitnote InBondProcess :${body}"/>
+            <process id="importExitNoteOutBoundProcessId" ref="importExitNoteOutBoundProcess"/>
+            <log id="AfterOutBoundExitNoteId" message="After exitnote OutBondProcess :${body}"/>
+        </route>
     </camelContext>
 </blueprint>
